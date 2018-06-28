@@ -1,4 +1,4 @@
-/*
+ /*
  * Projet MERITE  - Code fusées à eau
  * 
  * Objectifs :    - Gestion du parachute
@@ -8,14 +8,16 @@
  * Materiel : - Sparkfun 9DoF Razor IMU M0 (Accéleromètre - Gyroscope - Magnétomètre).
  *            - Sparkfun BME280 (Température - Pression - Humidité - Altitude).
  *            
- * Auteur(s) : Romain Rousseau
- * Dernière modification : 27/02/2018
+ * Auteur(s) : Cyril Zwick, Justin Maréchal, Hugo Vaille, Romain Rousseau
+ * Dernière modification : 26/06/2018
  */
 
 // -------- BIBLIOTEQUES -------- //
 
 #include <SparkFunMPU9250-DMP.h>
 #include <SparkFunBME280.h>
+//#include<Pozyx.h>
+//#include<Pozyx_definitions.h>
 
 #include <SD.h>
 #include <Servo.h>
@@ -36,6 +38,10 @@ const int boardLedPin = 13;
 const int motorPin = 9;
 const int sdPin = 38;
 const float seaLevelPressure = 1013.25;
+const int Accelerationx = 1;
+const int Accelerationy = 3;
+const int Accelerationz = 2;
+
 
 // -------- DECLARATION DES COMPOSANTS -------- //
 Servo parachute_motor;
@@ -45,20 +51,34 @@ BME280 bme;             //Capteur de pression, humidité, temperature
 // -------- VARIABLES D'ACQUISITION -------- //
 
 //TEMPS
-float acquisitionTime, referenceTime;
+float acquisitionTime, referenceTime, VariableTime;
 bool first_update;
 
 //ACCELEROMETRE - GYROSCOPE - MAGNETOMETRE
+
 float accelX, accelY, accelZ = 0;
+
 float gyroX ,  gyroY,  gyroZ = 0;
-float magX  ,   magY,   magZ = 0;
+//float magX  ,   magY,   magZ = 0;
 
 //VITESSE ET POSITION
-float velocityX, velocityY, velocityZ, lastVelocityX, lastVelocityY, lastVelocityZ = 0;
+//float velocityX, velocityY, velocityZ, lastVelocityX, lastVelocityY, lastVelocityZ = 0;
 //float posX, posY, posZ, lastPosX, lastPosY, lastPosZ = 0;
 
 //ALTITUDE
-//float altitude, altitudeReference, lastAltitude, diffAltitude = 0;
+float altitude, altitudeReference, lastAltitude, diffAltitude = 0;
+
+//TEMPERATURE
+float TempRef;
+float Temp;
+
+//Pression
+float PressionRefrel;
+float PressionRel;
+float PressionRef;
+float Pression;
+float lastPression;
+float diffPression;
 
 // -------- VARIABLES DE SAUVEGARDE/LOG -------- //
 
@@ -67,7 +87,7 @@ String logFileBuffer; // Buffer for logged data. Max is set in config
 
 const int maxOfLogFiles = 999;             // Nombre max de fichiers
 const String logFilePrefix = "log";        // Prefix du fichier
-const String logFileSuffix = "txt";        // Suffix du fichier
+const String logFileSuffix = "csv";        // Suffix du fichier
 const int maxFileSize = 5000000;           // 5MB max
 const int maxFileBufferSize = 1024;
 
@@ -76,6 +96,7 @@ const int maxFileBufferSize = 1024;
 
 void setup()
 {
+  
   //Ouverture des ports de debug
   SerialPort.begin(9600);
   delay(100);
@@ -85,7 +106,7 @@ void setup()
   hardwareIO();
 
   //On lance la procédure d'initialisation
-  initProcedure();
+  initProcedure1();
 }
 
 // -------- FIN SETUP ------- //
@@ -96,22 +117,28 @@ void loop()
   //Si le parachute est vérouillé
   if (parachuteLocked())
   {
+    
     //Alors on récupère les données
     getData();
     
     //Alors on enregistre les données sur un fichier de la carte SD
     logData();
     
+    
     //Test de déclenchement du parachute
-    //On déclenche le parachute si acceleration selon X est inférieure à -5 m.s^-2
+    //On déclenche le parachute si acceleration selon X est inférieure à -15 m.s^-2
+    
 
-    if (accelX < -5)
+    if (diffAltitude <-0.05 && altitude > 1)
     {
+      
       //On ouvre le parachute
       parachute_motor.write(90);
       SerialPort.println("Parachute déployé");
-      logString("Parachute Deployé \n");
+      //logString("Parachute Deployé \n");
       delay(100);
+      VariableTime=acquisitionTime;
+      
     }
 
    }
@@ -119,6 +146,17 @@ void loop()
   //Si le parachute est déployé alors la LED clignote en attendant que l'on rappui sur le bouton
   if (!parachuteLocked())
   {
+    
+    while(acquisitionTime-VariableTime< 5)
+    {
+    
+    //Alors on récupère les données
+    getData();
+    
+    //Alors on enregistre les données sur un fichier de la carte SD
+    logData();
+    }
+    
     //Si on appui sur le bouton, alors on relance une procédure d'initialisation
     if  (digitalRead(buttonPin) == HIGH)
     {
@@ -126,7 +164,7 @@ void loop()
       digitalWrite(addedLedPin,HIGH);
       delay(2000);
       //Relance de l'initialisation
-      initProcedure();
+      initProcedure2();
     }
 
     redLedBlink();
@@ -155,6 +193,7 @@ void hardwareIO(void)
 
   //Initialisation du moteur
   parachute_motor.attach(motorPin);
+  
 }
 
 // -------- FIN D'INITIALISATION DES ENTREES-SORTIES -------- //
@@ -162,19 +201,27 @@ void hardwareIO(void)
 
 // -------- PROCEDURE D'INITIALISATION DE LA FUSEE -------- //
 
-void initProcedure(void)
+void initProcedure1(void)
 {
+  String StringInitial;
   //On allume la LED pour indiquer qu'un traitement est en cours
   digitalWrite(addedLedPin, HIGH);
 
-  //Verifie si une Carte SD est connectée et initialise le lecteur
+  //Verifie si une Carte SD est connectée et initialise le lecteur + Premiere ligne tableur
   if ( SD.begin(sdPin) )
   {
+    //logString("SD.begin \n");
     SerialPort.println("Carte SD detectée");
     logFileName = nextLogFile();
     SerialPort.print("Données sauvegardées sur :");
     SerialPort.println(logFileName);
+   StringInitial = "Temps: (s) ;  AccelX: (m/s^2) ; AccelY: (m/s^2) ; AccelZ: (m/s^2) ; GyroX: dps ; GyroY: dps ; GyroZ: dps; ALt :m ; Parachute deploye;\n";
+    logString(StringInitial);
+    
+    
+    
   } else {
+    //logString("else \n");
     SerialPort.println("Carte SD non detectée");
     //Allume la LED bleue de la carte en cas de problème
     digitalWrite(boardLedPin, HIGH);
@@ -183,6 +230,7 @@ void initProcedure(void)
   //Verifie si la centrale inertielle est connectée et l'initialise
   if ( !initIMU() )
   {
+    //logString(" !initIMU \n");
     SerialPort.println("Erreur de connexion avec le MPU-9250. Redémarrer la carte.");
     //Allume la LED bleue de la carte en cas de problème
     digitalWrite(boardLedPin, HIGH);
@@ -191,7 +239,7 @@ void initProcedure(void)
   }
 
   //Initialisation du capteur BME_280
-  //initBME();
+  initBME();
 
   //Initialisation du moteur verouillant le parachute en position ouverte
   parachute_motor.write(90);
@@ -203,6 +251,7 @@ void initProcedure(void)
   //Attend le verouillage du parachute
   while (!parachuteLocked())
   {
+    //logString(" !parachutelocked \n");
     //Tant qu'on a pas d'appui sur le bouton on fait clignoter la LED et on attend.
     while (digitalRead(buttonPin) == LOW) {
       redLedBlink();
@@ -221,17 +270,106 @@ void initProcedure(void)
   //Fait clignoter la LED et attend l'appui sur le bouton pour calibrer les composants
   while (digitalRead(buttonPin) == LOW) {
     redLedBlink();
+    //logString(" appui sur le bouton \n");
   }
 
   //Calibration
   setupHardware();
 
   SerialPort.println("La fusée est prete à etre lancée.");
+  //logString(" fusee prete \n");
 
   //Eteint la LED pour indiquer que tout est prêt
+  
   digitalWrite(addedLedPin, LOW);
+  //logString(" Bouton eteint 1 \n");
+  digitalWrite(addedLedPin, LOW);
+  
+
+  
 }
 
+
+void initProcedure2(void)
+{
+  String StringInitial;
+  //On allume la LED pour indiquer qu'un traitement est en cours
+  digitalWrite(addedLedPin, HIGH);
+  //logString("Debut Initprcedure \n");
+
+  // initialise le lecteur + Premiere ligne tableur
+  
+    //logString("SD.begin \n");
+    SerialPort.println("Carte SD detectée");
+    logFileName = nextLogFile();
+    SerialPort.print("Données sauvegardées sur :");
+    SerialPort.println(logFileName);
+   StringInitial = "Temps: (s) ,  AccelX: (m/s^2) , AccelY: (m/s^2) , AccelZ: (m/s^2) , GyroX: dps , GyroY: dps , GyroZ: dps, ALt :m , Pression : Pa , Parachute depolye , \n";
+    logString(StringInitial);
+    
+    
+  //Verifie si la centrale inertielle est connectée et l'initialise
+  if ( !initIMU() )
+  {
+    //logString(" !initIMU \n");
+    SerialPort.println("Erreur de connexion avec le MPU-9250. Redémarrer la carte.");
+    //Allume la LED bleue de la carte en cas de problème
+    digitalWrite(boardLedPin, HIGH);
+  } else {
+    SerialPort.println("Centrale Inertielle connectée");
+  }
+
+  //Initialisation du capteur BME_280
+  initBME();
+
+  //Initialisation du moteur verouillant le parachute en position ouverte
+  parachute_motor.write(90);
+
+  SerialPort.println("Verouillez le parachute.");
+
+  delay(1000);
+  
+  //Attend le verouillage du parachute
+  while (!parachuteLocked())
+  {
+    //logString(" !parachutelocked \n");
+    //Tant qu'on a pas d'appui sur le bouton on fait clignoter la LED et on attend.
+    while (digitalRead(buttonPin) == LOW) {
+      redLedBlink();
+    }
+
+    //Verouille le parachute
+    parachute_motor.write(25);
+  }
+
+  SerialPort.println("Placez la fusée dans le lanceur et rappuyez sur le bouton");
+
+  //Stabilise la LED pour indiquer que l'appui a été pris en compte
+  digitalWrite(addedLedPin, HIGH);
+  delay(2000);
+
+  //Fait clignoter la LED et attend l'appui sur le bouton pour calibrer les composants
+  while (digitalRead(buttonPin) == LOW) {
+    redLedBlink();
+    //logString(" appui sur le bouton \n");
+  }
+
+  //Calibration
+  setupHardware();
+
+  SerialPort.println("La fusée est prete à etre lancée.");
+ // logString(" fusee prete \n");
+
+  //Eteint la LED pour indiquer que tout est prêt
+  
+  digitalWrite(addedLedPin, LOW);
+  //logString(" Bouton eteint 1 \n");
+  digitalWrite(addedLedPin, LOW);
+ 
+  
+
+  
+}
 // -------- FIN DE LA PROCEDURE D'INITIALISATION DE LA FUSEE -------- //
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -242,6 +380,7 @@ void initProcedure(void)
 
 void initBME(void)
 {
+  
   //Le BME est branché sur les port I²C
   //Adresse I²C par defaut est 0x77
   bme.settings.commInterface = I2C_MODE;
@@ -251,17 +390,19 @@ void initBME(void)
   bme.settings.runMode = 3;
 
   //tStandby 0 correspond a 0.5 ms d'attente
+  //tStandby 6 correspond a 10 ms d'attente
+  
   bme.settings.tStandby = 0;
 
   //filtre de fréquence
-  bme.settings.filter = 5;
+  bme.settings.filter = 2;
 
   //Oversampling (1 echantillon en plus pour chaque mesure)
   bme.settings.tempOverSample = 2;
-  bme.settings.pressOverSample = 2;
+  bme.settings.pressOverSample = 5;
   bme.settings.humidOverSample = 1;
 
-  delay(100); //On s'assure que le BMP a eu le temps de démarrer
+  delay(500); //On s'assure que le BMP a eu le temps de démarrer
 
   //On implémente cette configuration avec bme.begin
   if (!bme.begin())
@@ -277,6 +418,10 @@ void initBME(void)
   }
 
   delay(500);
+
+  
+  
+
 }
 
 // -------- FONCTION D'INITIALISATION DE LA CENTRALE INTERTIELLE -------- //
@@ -288,24 +433,24 @@ bool initIMU(void)
     return false;
 
   //Active le gyro, le magnetomètre et l'acceleromètre
-  imu.setSensors(INV_XYZ_GYRO | INV_XYZ_ACCEL | INV_XYZ_COMPASS);
+  imu.setSensors(INV_XYZ_GYRO | INV_XYZ_ACCEL );// | INV_XYZ_COMPASS);
 
   //Active l'acceleromètre
   //imu.setSensors(INV_XYZ_ACCEL);
 
   //Configure la plage de donnée de l'accel et du gyro
-  imu.setGyroFSR(500);
-  imu.setAccelFSR(2);
+  imu.setGyroFSR(2000);
+  imu.setAccelFSR(16);
 
   //Configure le taux d'échantillonage pour l'acceleromètre, le magnetomètre et le gyroscope
-  imu.setSampleRate(1000);
-  imu.setCompassSampleRate(50);
+  imu.setSampleRate(500);
+  //imu.setCompassSampleRate(50);
 
   //Configure le filtre basse fréquence
   imu.setLPF(50);
   
   //Configure les données qui vont etre envoyé dans le buffer FIFO
-  imu.configureFifo(INV_XYZ_GYRO | INV_XYZ_ACCEL | INV_XYZ_COMPASS);
+  imu.configureFifo(INV_XYZ_GYRO | INV_XYZ_ACCEL );//| INV_XYZ_COMPASS);
 
   delay(1000);
 
@@ -317,7 +462,7 @@ bool initIMU(void)
 
 bool parachuteLocked(void) 
 {
-  if (parachute_motor.read() <= 40) 
+  if (parachute_motor.read() <= 50) 
   {
     return true;
   } else {
@@ -342,8 +487,9 @@ void setupHardware(void)
 {
   //Led allumé pendant le calibrage
   digitalWrite(addedLedPin, HIGH);
-
-  SerialPort.println("Calibration en cours...");
+  
+//logString(" Calibration en cours \n");
+ // SerialPort.println("Calibration en cours...");
 
   //---- Calibration Gyroscope ----//
   
@@ -356,14 +502,15 @@ void setupHardware(void)
   first_update  = true;
   acquisitionTime = referenceTime = 0;
   
-  //lastAltitude    = diffAltitude  = altitudeReference = 0;
+  lastAltitude    = diffAltitude  = altitudeReference = 0;
+  lastPression = diffPression = 0;
   
-  accelX          = accelY        = accelZ            = 0;
+  accelX          =  accelY        = accelZ            = 0;
   gyroX           = gyroY         = gyroZ             = 0;
-  magX            = magY          = magZ              = 0;
+ // magX            = magY          = magZ              = 0;
   
-  velocityX       = velocityY     = velocityZ         = 0;
-  lastVelocityX   = lastVelocityY = lastVelocityZ     = 0;
+  //velocityX       = velocityY     = velocityZ         = 0;
+ // lastVelocityX   = lastVelocityY = lastVelocityZ     = 0;
   
   //posX            = posY          = posZ              = 0;
   //lastPosX        = lastPosY      = lastPosZ          = 0;
@@ -372,11 +519,28 @@ void setupHardware(void)
   //bme.readTempC();
   //delay(50);
 
-  //Altitude au moment du lancement
-  //altitudeReference = bme.readFloatAltitudeMeters();
+  //TemperatureRef
+  TempRef=bme.readTempC()+273,15; 
+  delay(500);
+
+///  Altitude au moment du lancement
+PressionRef = bme.readFloatPressure();
+while (PressionRef < 80000)
+{
+  initBME();
+  delay(2000);
+  PressionRef = bme.readFloatPressure();
+}
+
+ PressionRefrel = PressionRef/101325.0000;
+  altitudeReference = 2*1006*(TempRef/(-7*9.81))*log(PressionRefrel);
+
+  
+
+  
 
   SerialPort.println("Calibrage effectuée");
-
+//logString(" Calibration effectue \n");
   delay(2000);
 }
 
@@ -419,6 +583,11 @@ void getData(void) {
 
 // -------- FONCTION D'ACTUALISATION DES DONNEES -------- //
 
+double convAnalogtoG(double valAnalog) 
+{
+return ((valAnalog*400.0)/1024.0)-200.0;  
+}
+
 void updateData(void) {
   
   //Mise à jour des données de l'acceleromètre et du gyroscope
@@ -441,9 +610,9 @@ void updateData(void) {
   acquisitionTime = (imu.time - referenceTime)/1000 ;
 
   //Données acceleromètre en g converties en m/s^-2
-  accelX = imu.calcAccel(imu.ax) * 9.8 - 10;
-  accelY = imu.calcAccel(imu.ay) * 9.8;
-  accelZ = imu.calcAccel(imu.az) * 9.8;
+  accelX = -convAnalogtoG(analogRead(Accelerationx));
+  accelY = -convAnalogtoG(analogRead(Accelerationy)); 
+  accelZ = -convAnalogtoG(analogRead(Accelerationz));
 
   //Données gyroscope en degrés par secondes
   gyroX = imu.calcGyro(imu.gx);
@@ -451,21 +620,21 @@ void updateData(void) {
   gyroZ = imu.calcGyro(imu.gz);
 
   //Données magnetomètre en micro Tesla
-  magX = imu.calcMag(imu.mx);
-  magY = imu.calcMag(imu.my);
-  magZ = imu.calcMag(imu.mz);  
+ // magX = imu.calcMag(imu.mx);
+  //magY = imu.calcMag(imu.my);
+  //magZ = imu.calcMag(imu.mz);  
   
   
   //---- CALCULS DE VITESSE ET POSITION ----//
 
   //Vitesse = VitesseInitiale + Accel*t
-  velocityX = lastVelocityX + accelX * acquisitionTime;
-  velocityY = lastVelocityY + accelY * acquisitionTime;
-  velocityZ = lastVelocityZ + accelZ * acquisitionTime;
+  //velocityX = lastVelocityX + accelX * acquisitionTime;
+  //velocityY = lastVelocityY + accelY * acquisitionTime;
+  //velocityZ = lastVelocityZ + accelZ * acquisitionTime;
 
-  lastVelocityX = velocityX;
-  lastVelocityY = velocityY;
-  lastVelocityZ = velocityZ;
+  //lastVelocityX = velocityX;
+  //lastVelocityY = velocityY;
+  //lastVelocityZ = velocityZ;
 
   /*
   
@@ -479,19 +648,32 @@ void updateData(void) {
   lastPosZ = posZ;
 
   */
+//Temperature
+Temp=bme.readTempC()+273,15;
+  
+ // Recuperation de l'altitude
+ Pression=bme.readFloatPressure();
+    PressionRel= Pression/101325.0000;
+  altitude = 2*1006*(Temp/(-7*9.81))*log(PressionRel) - altitudeReference;
+  if( (altitude < -1 || altitude > 1) && acquisitionTime < 2)
+  { 
+    PressionRef = bme.readFloatPressure();
+    PressionRefrel = PressionRef/101325.0000;
+    altitudeReference = 2*1006*(Temp/(-7*9.81))*log(PressionRefrel);
+    altitude=0;
 
-  /*
-  //Recuperation de l'altitude
-  if (acquisitionTime > 5){
-  altitude = bme.readFloatAltitudeMeters() - altitudeReference - 0.01*acquisitionTime;
-  }else{
-  altitude = bme.readFloatAltitudeMeters() - altitudeReference;
+  
   }
+  
   
   //Calcul de la différence d'altitude entre 2 mesures (toutes les 700 ms)
   diffAltitude = altitude - lastAltitude;
   lastAltitude = altitude;
-  */
+
+  //Calcul la difference de pression
+  diffPression= Pression - lastPression;
+  lastPression= Pression;
+  
 }
 
 
@@ -499,19 +681,22 @@ void updateData(void) {
 
 void printData(void) {
 
+
+  
+
   SerialPort.println("Temps: "  + String(acquisitionTime) + " s");
   
   SerialPort.println("Accel: "  + String(accelX)          + ", " + String(accelY)     + ", " + String(accelZ)     + " m/s^-2");
   SerialPort.println("Gyro: "   + String(gyroX)           + ", " + String(gyroY)      + ", " + String(gyroZ)      + " °/s");
-  SerialPort.println("Mag: "    + String(magX)            + ", " + String(magY)       + ", " + String(magZ)       + " uT");
+  //SerialPort.println("Mag: "    + String(magX)            + ", " + String(magY)       + ", " + String(magZ)       + " uT");
 
-  SerialPort.println("Vit: "    + String(velocityX)       + ", " + String(velocityY)  + ", " + String(velocityZ)  + " m/s^-1");
+  //SerialPort.println("Vit: "    + String(velocityX)       + ", " + String(velocityY)  + ", " + String(velocityZ)  + " m/s^-1");
   //SerialPort.println("Pos: "    + String(posX)            + ", " + String(posY)       + ", " + String(posZ)       + " m");
 
   
   //SerialPort.println("Altitude de réference: " + String(altitudeReference) + " m");
   //SerialPort.println("Delta Altitude: " + String(diffAltitude) + " m");
-  //SerialPort.println("Altitude: " + String(altitude) + " m");
+  SerialPort.println("Altitude: " + String(altitude) + " m");
   
   if (!parachuteLocked())
   {
@@ -552,6 +737,7 @@ String nextLogFile(void)
     //Sinon on incrémente l'index pour verifier si le suivant existe
     logIndex++;
   }
+ 
 
   //Si tout les fichiers existent c'est qu'on a atteint la limite de fichiers
   return "";
@@ -587,15 +773,32 @@ bool logString(String toLog)
 
 // -------- FONCTION D'ENREGISTREMENT DES DONNEES  -------- //
 
-void logData(void) 
+void logData() 
 {
+
   String logLine = "";
+ 
+  //logLine += "Temps: (s) "+ ";" + "AccelX: (m/s^2)" + ";" + "AccelY: (m/s^2)"+ ";"+"AccelY: (m/s^2)"+";"+"AccelZ: (m/s^2)"+";"+"GyroX: dps"+";"+"GyroY: dps"+";"+"GyroZ: dps;\n";
+  
+ if (!parachuteLocked())
+  {
+    logLine += String(acquisitionTime) + "," + String(accelX) + "," + String(accelY) + "," + String(accelZ) + "," + String(gyroX) + "," +  String(gyroY) + "," + String(gyroZ) + "," + String(altitude) +"," + String(Pression)  +"," + 1 + ",\n ";
+  }
+  
+  else
+  
+  
+  
 
-  logLine += "Temps: "  + String(acquisitionTime) + " s; \n" ;
+//    logLine += "Temps: (s) "+ ";" + "AccelX: (m/s^2)" + ";" + "AccelY: (m/s^2)"+ ";"+"AccelY: (m/s^2)"+";"+"AccelZ: (m/s^2)"+";"+"GyroX: dps"+";"+"GyroY: dps"+";"+"GyroZ: dps;\n";
+    logLine += String(acquisitionTime) + "," + String(accelX) + "," + String(accelY) + "," + String(accelZ) + "," + String(gyroX) + "," +  String(gyroY) + "," + String(gyroZ) + "," + String(altitude)  +"," +  String(Pression)  +","+ 0 + ",\n ";
+  
 
-  logLine += "Accel: "  + String(accelX)          + ", " + String(accelY) + ", " + String(accelZ) + " m/s^-2; \n";
-  logLine += "Gyro: "   + String(gyroX)           + ", " + String(gyroY)  + ", " + String(gyroZ)  + " dps; \n";
-  logLine += "Mag: "    + String(magX)            + ", " + String(magY)   + ", " + String(magZ)   + " uT; \n";
+  //Fonctionnel logLine += "Temps: "  + String(acquisitionTime) + " s; \n" ;
+
+  //Fonctionnel logLine += "Accel: "  + String(accelX)  + ";"  + String(accelY) + ", " + String(accelZ) + " m/s^-2; \n";
+  //Fonctionnel logLine += "Gyro: "   + String(gyroX)           + ", " + String(gyroY)  + ", " + String(gyroZ)  + " dps; \n";
+  // Fonctionnel logLine += "Mag: "    + String(magX)            + ", " + String(magY)   + ", " + String(magZ)   + " uT; \n";
 
   //logLine += "Vit: " + String(velocityX) + ", " + String(velocityY) + ", " + String(velocityZ) + " m/s^-1; \n";
   //logLine += "Pos: " + String(posX) +  ", " + String(posY) + ", " + String(posZ) + " m; \n";
@@ -603,11 +806,7 @@ void logData(void)
   //logLine += "Altitude: " + String(altitude) + " m; \n";
   //logLine += "Diff_Alt: " + String(diffAltitude) + " m; \n";
 
-  if (!parachuteLocked())
-  {
-    logLine += "Parachute Deployé";
-  }
+  
   
   logString(logLine);
 }
-
