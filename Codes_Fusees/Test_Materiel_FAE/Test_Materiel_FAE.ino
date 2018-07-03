@@ -1,4 +1,14 @@
-//Test des elements de la fusée
+ /*
+ * Projet MERITE  - Code de test des différents éléments de la carte accompagnant les cartes Sparkfun
+ * 
+ * Objectif : Verifier le fonctionnement des éléments suivants du PCB : 
+ *              - Des deux LEDs (rouge et verte)
+ *              - Du bouton
+ *              - Du servomoteur
+ *    
+ * Auteur(s) : Romain Rousseau
+ * Dernière modification : 03/07/2018
+ */
 
 //Bibliotèques
 #include <Servo.h>
@@ -7,78 +17,61 @@
 Servo motor;
 
 //Constantes
-const int buttonPin = 8;
-const int ledOnBoardPin = 13;
-const int addedLedPin = 10;
-const int motorPin = 9;
+const int buttonPin = 12;
+const int redLedPin = 9;
+const int greenLedPin = 8;
+const int servoPin = 13;  
 
-//Variables        
-int pushed = 0;    
+#define SerialPort SerialUSB
 
 //Initialisation
-void setup() {
-  
-//Ouverture d'un port de Debug
-Serial.begin(9600);
+void setup() 
+{
+  //Ouverture d'un port de Debug
+  SerialPort.begin(9600);
 
-//Declaration des pins
-pinMode(ledOnBoardPin, OUTPUT);       //LED de la carte rouge
-pinMode(addedLedPin, OUTPUT);         //LED de la carte beige
-pinMode(buttonPin, INPUT);            //Bouton
+  //Déclaration des entrées/sorties
+  pinMode(redLedPin, OUTPUT);           //LED rouge
+  pinMode(greenLedPin, OUTPUT);         //LED VERTE
+  pinMode(buttonPin, INPUT);            //Bouton
 
-//Test moteur
-MotorTest();
+  //Test moteur
+  MotorTest();
 
-//Test leds
-LedTest(ledOnBoardPin);
-LedTest(addedLedPin);
-
-//Test Button
-ButtonTest(addedLedPin);
-
+  //Test des leds
+  //Devrait les allumer
+  digitalWrite(redLedPin, HIGH); 
+  digitalWrite(greenLedPin, HIGH); 
 }
 
 //Programme qui tourne en continue
-void loop() {
-
-//Test Button
-ButtonTest(addedLedPin);
-
+void loop()
+{
+  //Test du bouton
+  //Devrait afficher : "Bouton" dans la console série à chaque appui"
+  if (digitalRead(buttonPin) == 1)
+  {
+    SerialPort.println("Bouton");
+  }else{
+    
+  }
 }
 
-
-//Test de fonctionnement du moteur.
+//Test de fonctionnement du servomoteur.
 //Devrait s'ouvrir et se fermer 2 fois.
-void MotorTest() {
+void MotorTest() 
+{
+  //Initialisation du moteur
+  motor.attach(servoPin);
+  delay(50);
 
-//Initialisation du moteur
-motor.attach(motorPin);
-delay(50);
-
-for (int i=0 ; i<=1 ; i++) {
-motor.write(90); //Ouvert
-delay(1000);
-motor.write(25); //Fermé
-delay(5000);
-}
-
-}
-
-//Test de fonctionnement des leds
-//Devrait clignoter 3 fois
-void LedTest (int ledPin) {
-
-for (int i=0 ; i<=2 ; i++) {
-digitalWrite(ledPin, LOW);  //Eteinte
-delay(500);
-digitalWrite(ledPin, HIGH); //Allumé
-}
-
-}
-
-//Test de fonctionnement du bouton
-void ButtonTest(int ledPin) {
-  SerialPort.println(digitalRead(buttonPin));
+  for (int i=0 ; i<=1 ; i++) 
+  {
+    motor.write(90); //Ouvert
+    delay(500);
+    motor.write(25); //Fermé
+    delay(1000);
+  }
 }
 
   
