@@ -48,10 +48,6 @@ BME280 bme;             //Capteur de pressure, humidité, temperature
 float flightTime, launchTime, triggeringTime;
 bool first_update;
 
-// ACCELEROMETRE - GYROSCOPE
-float accelX, accelY, accelZ = 0;
-float gyroX ,  gyroY,  gyroZ = 0;
-
 // ALTITUDE
 float altitude, altitudeRef, lastAltitude, diffAltitude = 0;
 
@@ -171,7 +167,7 @@ void hardwareIO(void)
 
 void initProcedure(void)
 {
-  String firstLine = "Temps,AccelX,AccelY,AccelZ,GyroX,GyroY,GyroZ,Altitude,Pression,Parachute\n";
+  String firstLine = "Temps,Altitude,Pression,Parachute\n";
   
   //On allume la LED rouge et on éteint la verte pour indiquer qu'un traitement est en cours
   digitalWrite(redLedPin, HIGH);
@@ -245,7 +241,7 @@ void initProcedure(void)
 //Procédure de relance.
 void newLaunch(void)
 {
-  String firstLine = "Temps,AccelX,AccelY,AccelZ,GyroX,GyroY,GyroZ,Altitude,Pression,Parachute\n";
+  String firstLine = "Temps,Altitude,Pression,Parachute\n";
   
   //On allume la LED rouge et on éteint la verte pour indiquer qu'un traitement est en cours
   digitalWrite(redLedPin, HIGH);
@@ -366,29 +362,6 @@ bool initIMU(void)
   if (imu.begin() != INV_SUCCESS)
     return false;
 
-  //Active le gyro
-  imu.setSensors(INV_XYZ_GYRO); // | INV_XYZ_ACCEL ) | INV_XYZ_COMPASS);
-  
-  //Pour tout activer :
-  //imu.setSensors(INV_XYZ_GYRO); | INV_XYZ_ACCEL ) | INV_XYZ_COMPASS);
-
-  //Configure la plage de donnée de l'accel et du gyro
-  //imu.setAccelFSR(16);
-  imu.setGyroFSR(2000);
- 
-  //Configure le taux d'échantillonage pour l'acceleromètre, le magnetomètre et le gyroscope
-  //imu.setCompassSampleRate(50);
-  imu.setSampleRate(500);
-  
-  //Configure le filtre basse fréquence
-  imu.setLPF(50);
-  
-  //Configure les données qui vont etre envoyé dans le buffer FIFO
-  imu.configureFifo(INV_XYZ_GYRO);
-  
-  //Pour tout envoyer :
-  //imu.setSensors(INV_XYZ_GYRO | INV_XYZ_ACCEL ) | INV_XYZ_COMPASS);
-
   delay(1000);
 
   return true;
@@ -433,31 +406,16 @@ void setupHardware(void)
   // Led rouge allumé pendant le calibrage
   digitalWrite(redLedPin, HIGH);
   digitalWrite(greenLedPin, LOW);
-  
-  // SerialPort.println("Calibration en cours...");
 
-  // ---- Calibration Gyroscope ---- //
-  
-  // Recalibre le gyroscope après 8 secondes d'immobilité
-  // imu.dmpBegin(DMP_FEATURE_GYRO_CAL | DMP_FEATURE_SEND_CAL_GYRO, 10);
-  // delay(8000);
-
-  // ---- Remise à zéro des variables ---- //
-  
   first_update  = true;
   flightTime = launchTime = 0;
   
   lastAltitude = diffAltitude = 0;
   lastPressure = diffPressure = 0;
-  
-  accelX = accelY = accelZ = 0;
-  gyroX  = gyroY  = gyroZ  = 0;
 
   // Temperature de reference convertie en Kelvin
   tempRef = bme.readTempC() + 273,15; 
   delay(500);
-
-  // Altitude de lancement
 
   // Tant que la lecture de la pression ne donne pas une valeur cohérente on réinitialise le BME280
   while (bme.readFloatPressure() < 80000)
@@ -487,19 +445,6 @@ void setupHardware(void)
 
 void getData(void) 
 {
-  SerialPort.println("Getting Data");
-  
-  //fifoAvailable donne le nombre de bits dans le buffer FIFO
-  /*if ( imu.fifoAvailable() > 0) 
-  {
-    //On actualise nos variables et affiche les resultats.
-    updateData();
-    printData();
-  } else {
-    SerialPort.println("Pas de données dans le buffer");
-  }*/
-
-  //Autre solution
   if (imu.dataReady())
   {
     updateData();
@@ -509,23 +454,14 @@ void getData(void)
 
 // -------- FONCTION D'ACTUALISATION DES DONNEES -------- //
 
-// Fonction de conversion des valeurs analogiques données par le ADXL377 en G
-double mapf(double val, double in_min, double in_max, double out_min, double out_max) {
-    return (val - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-}
-
 void updateData(void) 
 { 
   SerialPort.println("Updating Data");
-  
-  // Mise à jour des données du gyroscope
-  imu.update(UPDATE_GYRO);
-
-  // MAJ de tous les capteurs
-  // imu.update();
 
   // ---- RECUPERATION DES DONNEES ---- //
 
+  imu.update();
+  
   // Temps de vol
   if (first_update) 
   {
@@ -535,18 +471,6 @@ void updateData(void)
   }
 
   flightTime = (imu.time - launchTime) / 1000;
-  
-  int scale = 100;
-  
-  // Accéleration avec l'acceleromètre ADXL377
-  accelX = - mapf(analogRead(adxl377_X), 0, 1023, -scale, scale);
-  accelY = - mapf(analogRead(adxl377_Y), 0, 1023, -scale, scale);
-  accelZ = - mapf(analogRead(adxl377_Z), 0, 1023, -scale, scale);
-
-  // Données gyroscope en degrés par secondes
-  gyroX = imu.calcGyro(imu.gx);
-  gyroY = imu.calcGyro(imu.gy);
-  gyroZ = imu.calcGyro(imu.gz);  
   
   // Temperature
   temp = bme.readTempC() + 273,15;
@@ -579,14 +503,7 @@ void printData(void)
   SerialPort.println("Printing Data");
 
   SerialPort.println("Temps: "    + String(flightTime) + " s");
-  SerialPort.println("Accel: "    + String(accelX)     + ", " + String(accelY) + ", " + String(accelZ) + " m/s^-2");
-  SerialPort.println("Gyro: "     + String(gyroX)      + ", " + String(gyroY)  + ", " + String(gyroZ)  + " °/s");
   SerialPort.println("Altitude: " + String(altitude)   + " m");
-  
-  if (!parachuteLocked())
-  {
-    SerialPort.println("Parachute Deployé après " + String(triggeringTime) + " s");
-  }
 }
 
 //----------------------------------------------------------//
@@ -660,7 +577,7 @@ void logData()
 
   String logLine = "";
 
-  logLine += String(flightTime) + "," + String(accelX) + "," + String(accelY) + "," + String(accelZ) + "," + String(gyroX) + "," +  String(gyroY) + "," + String(gyroZ) + "," + String(altitude) + "," + String(pressure) + "," + String(parachuteLocked()) + "\n";
+  logLine += String(flightTime) + "," + String(altitude) + "," + String(pressure) + "," + String(parachuteLocked()) + "\n";
   
   logString(logLine);
 
