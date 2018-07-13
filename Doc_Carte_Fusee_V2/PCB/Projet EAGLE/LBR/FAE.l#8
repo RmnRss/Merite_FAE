@@ -103,6 +103,7 @@
 <package name="LED">
 <pad name="IN" x="-2.54" y="0" drill="0.3" diameter="2"/>
 <pad name="OUT" x="2.54" y="0" drill="0.3" diameter="2"/>
+<circle x="0" y="0" radius="2.83980625" width="0.127" layer="21"/>
 </package>
 <package name="RAZOR_BOARD">
 <pad name="TX" x="-2.54" y="0" drill="0.3" diameter="1.27" shape="long"/>
@@ -124,6 +125,27 @@
 <wire x1="29.21" y1="17.78" x2="29.21" y2="-16.51" width="0.127" layer="21"/>
 <wire x1="29.21" y1="-16.51" x2="-3.81" y2="-16.51" width="0.127" layer="21"/>
 <wire x1="-3.81" y1="-16.51" x2="-3.81" y2="17.78" width="0.127" layer="21"/>
+</package>
+<package name="ADXL377">
+<pad name="X" x="0" y="1.27" drill="0.3" diameter="1.27" shape="long"/>
+<pad name="A3.3V" x="0" y="3.81" drill="0.3" diameter="1.27" shape="long"/>
+<pad name="AGND" x="0" y="6.35" drill="0.3" diameter="1.27" shape="long"/>
+<pad name="Y" x="0" y="-1.27" drill="0.3" diameter="1.27" shape="long"/>
+<pad name="Z" x="0" y="-3.81" drill="0.3" diameter="1.27" shape="long"/>
+<pad name="ST" x="0" y="-6.35" drill="0.3" diameter="1.27" shape="long"/>
+<wire x1="-1.27" y1="11.43" x2="16.51" y2="11.43" width="0.127" layer="21"/>
+<wire x1="16.51" y1="11.43" x2="16.51" y2="-11.43" width="0.127" layer="21"/>
+<wire x1="16.51" y1="-11.43" x2="-1.27" y2="-11.43" width="0.127" layer="21"/>
+<wire x1="-1.27" y1="-11.43" x2="-1.27" y2="11.43" width="0.127" layer="21"/>
+</package>
+<package name="SERVO_ADAPT">
+<pad name="M-" x="0" y="2.54" drill="0.3" diameter="1.27" shape="long"/>
+<pad name="M+" x="0" y="0" drill="0.3" diameter="1.27" shape="long"/>
+<pad name="M~" x="0" y="-2.54" drill="0.3" diameter="1.27" shape="long"/>
+<wire x1="-1.27" y1="3.81" x2="1.27" y2="3.81" width="0.127" layer="21"/>
+<wire x1="1.27" y1="3.81" x2="1.27" y2="-3.81" width="0.127" layer="21"/>
+<wire x1="1.27" y1="-3.81" x2="-1.27" y2="-3.81" width="0.127" layer="21"/>
+<wire x1="-1.27" y1="-3.81" x2="-1.27" y2="3.81" width="0.127" layer="21"/>
 </package>
 </packages>
 <symbols>
@@ -160,29 +182,50 @@
 <wire x1="1.27" y1="0" x2="1.27" y2="-1.27" width="0.254" layer="94"/>
 <pin name="IN" x="-3.81" y="0" visible="off" length="short" direction="in"/>
 <pin name="OUT" x="3.81" y="0" visible="off" length="short" direction="out" rot="R180"/>
-<text x="-3.81" y="2.54" size="1.27" layer="95">&gt;NAME</text>
-<text x="-3.81" y="-3.81" size="1.27" layer="96">&gt;VALUE</text>
+<text x="2.54" y="2.54" size="1.016" layer="96">&gt;VALUE</text>
+<text x="-7.62" y="2.54" size="1.016" layer="95">&gt;NAME</text>
 </symbol>
 <symbol name="RAZOR_BOARD">
-<pin name="13" x="-6.35" y="8.89" visible="pin" length="short"/>
-<pin name="12" x="-6.35" y="7.62" visible="pin" length="short"/>
-<pin name="11" x="-6.35" y="6.35" visible="pin" length="short"/>
-<pin name="A0" x="-6.35" y="5.08" visible="pin" length="short"/>
-<pin name="10" x="-6.35" y="3.81" visible="pin" length="short"/>
-<pin name="A1" x="-6.35" y="2.54" visible="pin" length="short"/>
-<pin name="TX" x="-6.35" y="1.27" visible="pin" length="short"/>
+<pin name="13" x="-6.35" y="26.67" visible="pin" length="short"/>
+<pin name="12" x="-6.35" y="22.86" visible="pin" length="short"/>
+<pin name="11" x="-6.35" y="19.05" visible="pin" length="short"/>
+<pin name="A0" x="-6.35" y="15.24" visible="pin" length="short"/>
+<pin name="10" x="-6.35" y="11.43" visible="pin" length="short"/>
+<pin name="A1" x="-6.35" y="7.62" visible="pin" length="short"/>
+<pin name="TX" x="-6.35" y="3.81" visible="pin" length="short"/>
 <pin name="A2" x="-6.35" y="0" visible="pin" length="short"/>
-<pin name="RX" x="-6.35" y="-1.27" visible="pin" length="short"/>
-<pin name="A3" x="-6.35" y="-2.54" visible="pin" length="short"/>
-<pin name="3V3" x="-6.35" y="-3.81" visible="pin" length="short"/>
-<pin name="A4" x="-6.35" y="-5.08" visible="pin" length="short"/>
-<pin name="GND" x="-6.35" y="-6.35" visible="pin" length="short"/>
-<pin name="08" x="-6.35" y="-7.62" visible="pin" length="short"/>
-<pin name="09" x="-6.35" y="-8.89" visible="pin" length="short"/>
-<wire x1="-3.81" y1="10.16" x2="-3.81" y2="-10.16" width="0.254" layer="94"/>
-<wire x1="-3.81" y1="-10.16" x2="3.81" y2="-10.16" width="0.254" layer="94"/>
-<wire x1="3.81" y1="-10.16" x2="3.81" y2="10.16" width="0.254" layer="94"/>
-<wire x1="3.81" y1="10.16" x2="-3.81" y2="10.16" width="0.254" layer="94"/>
+<pin name="RX" x="-6.35" y="-3.81" visible="pin" length="short"/>
+<pin name="A3" x="-6.35" y="-7.62" visible="pin" length="short"/>
+<pin name="3V3" x="-6.35" y="-11.43" visible="pin" length="short"/>
+<pin name="A4" x="-6.35" y="-15.24" visible="pin" length="short"/>
+<pin name="GND" x="-6.35" y="-19.05" visible="pin" length="short"/>
+<pin name="08" x="-6.35" y="-22.86" visible="pin" length="short"/>
+<pin name="09" x="-6.35" y="-26.67" visible="pin" length="short"/>
+<wire x1="-3.81" y1="27.94" x2="-3.81" y2="-27.94" width="0.254" layer="94"/>
+<wire x1="-3.81" y1="-27.94" x2="3.81" y2="-27.94" width="0.254" layer="94"/>
+<wire x1="3.81" y1="-27.94" x2="3.81" y2="27.94" width="0.254" layer="94"/>
+<wire x1="3.81" y1="27.94" x2="-3.81" y2="27.94" width="0.254" layer="94"/>
+</symbol>
+<symbol name="ADXL377">
+<pin name="X" x="-5.08" y="2.54" visible="pin" length="short"/>
+<pin name="A3V3" x="-5.08" y="5.08" visible="pin" length="short"/>
+<pin name="AGND" x="-5.08" y="7.62" visible="pin" length="short"/>
+<pin name="Y" x="-5.08" y="-2.54" visible="pin" length="short"/>
+<pin name="Z" x="-5.08" y="-5.08" visible="pin" length="short"/>
+<pin name="ST" x="-5.08" y="-7.62" visible="pin" length="short"/>
+<wire x1="-2.54" y1="10.16" x2="-2.54" y2="-10.16" width="0.254" layer="94"/>
+<wire x1="-2.54" y1="-10.16" x2="2.54" y2="-10.16" width="0.254" layer="94"/>
+<wire x1="2.54" y1="-10.16" x2="2.54" y2="10.16" width="0.254" layer="94"/>
+<wire x1="2.54" y1="10.16" x2="-2.54" y2="10.16" width="0.254" layer="94"/>
+</symbol>
+<symbol name="SERVO_ADAPT">
+<pin name="M-" x="-5.08" y="0" visible="pin" length="short"/>
+<pin name="M+" x="-5.08" y="2.54" visible="pin" length="short"/>
+<pin name="M~" x="-5.08" y="-2.54" visible="pin" length="short"/>
+<wire x1="-2.54" y1="5.08" x2="-2.54" y2="-5.08" width="0.254" layer="94"/>
+<wire x1="-2.54" y1="-5.08" x2="2.54" y2="-5.08" width="0.254" layer="94"/>
+<wire x1="2.54" y1="-5.08" x2="2.54" y2="5.08" width="0.254" layer="94"/>
+<wire x1="2.54" y1="5.08" x2="-2.54" y2="5.08" width="0.254" layer="94"/>
 </symbol>
 </symbols>
 <devicesets>
@@ -273,6 +316,43 @@
 <connect gate="G$1" pin="GND" pad="GND"/>
 <connect gate="G$1" pin="RX" pad="RX"/>
 <connect gate="G$1" pin="TX" pad="TX"/>
+</connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+</devices>
+</deviceset>
+<deviceset name="ADXL377">
+<gates>
+<gate name="G$1" symbol="ADXL377" x="0" y="0"/>
+</gates>
+<devices>
+<device name="" package="ADXL377">
+<connects>
+<connect gate="G$1" pin="A3V3" pad="A3.3V"/>
+<connect gate="G$1" pin="AGND" pad="AGND"/>
+<connect gate="G$1" pin="ST" pad="ST"/>
+<connect gate="G$1" pin="X" pad="X"/>
+<connect gate="G$1" pin="Y" pad="Y"/>
+<connect gate="G$1" pin="Z" pad="Z"/>
+</connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+</devices>
+</deviceset>
+<deviceset name="SERVO_ADAPT">
+<gates>
+<gate name="G$1" symbol="SERVO_ADAPT" x="0" y="0"/>
+</gates>
+<devices>
+<device name="" package="SERVO_ADAPT">
+<connects>
+<connect gate="G$1" pin="M+" pad="M+"/>
+<connect gate="G$1" pin="M-" pad="M-"/>
+<connect gate="G$1" pin="M~" pad="M~"/>
 </connects>
 <technologies>
 <technology name=""/>

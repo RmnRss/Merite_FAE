@@ -27,14 +27,18 @@
 
 // --------  PINS/BRANCHEMENTS -------- //
 
+const int buttonPin = 8;
+const int redLedPin = 10;
+const int motorPin = 9;
+const int sdPin = 38;
+
+/*
 const int buttonPin = 12;
 const int redLedPin = 9;
 const int greenLedPin = 8;
 const int motorPin = 13;
 const int sdPin = 38;
-const int adxl377_X = 2;
-const int adxl377_Y = 3;
-const int adxl377_Z = 4;
+*/
 
 // -------- DECLARATION DES COMPOSANTS -------- //
 
@@ -108,7 +112,7 @@ void loop()
       //On ouvre le parachute
       servo_parachute.write(90);
       triggeringTime=flightTime;
-      digitalWrite(greenLedPin, LOW);
+      //digitalWrite(greenLedPin, LOW);
     }
    }
 
@@ -143,8 +147,8 @@ void loop()
 void hardwareIO(void)
 {
   //Initialisation de la led verte
-  pinMode(greenLedPin, OUTPUT);
-  digitalWrite(greenLedPin, LOW);
+  //pinMode(greenLedPin, OUTPUT);
+  //digitalWrite(greenLedPin, LOW);
 
   //Initialisation de la led rouge
   pinMode(redLedPin, OUTPUT);
@@ -171,7 +175,7 @@ void initProcedure(void)
   
   //On allume la LED rouge et on éteint la verte pour indiquer qu'un traitement est en cours
   digitalWrite(redLedPin, HIGH);
-  digitalWrite(greenLedPin, LOW);
+  //digitalWrite(Pin, LOW);
 
   //Verifie si une Carte SD est connectée et initialise le lecteur + Premiere ligne tableur
   if ( SD.begin(sdPin) )
@@ -234,7 +238,7 @@ void initProcedure(void)
   SerialPort.println("La fusée est prete à etre lancée.");
 
   //Allume la LED verte et éteint la rouge pour indiquer qu'on est prêt à lancer
-  digitalWrite(greenLedPin, HIGH);
+  //digitalWrite(greenLedPin, HIGH);
   digitalWrite(redLedPin, LOW);
 }
 
@@ -245,7 +249,7 @@ void newLaunch(void)
   
   //On allume la LED rouge et on éteint la verte pour indiquer qu'un traitement est en cours
   digitalWrite(redLedPin, HIGH);
-  digitalWrite(greenLedPin, LOW); 
+  //digitalWrite(greenLedPin, LOW); 
 
   logFileName = nextLogFile();
   SerialPort.print("Données sauvegardées sur :");
@@ -303,7 +307,7 @@ void newLaunch(void)
   SerialPort.println("La fusée est prete à etre lancée.");
 
   //Allume la LED verte et éteint la rouge pour indiquer qu'on est prêt à lancer
-  digitalWrite(greenLedPin, HIGH);
+  //digitalWrite(greenLedPin, HIGH);
   digitalWrite(redLedPin, LOW);
 }
 
@@ -393,10 +397,10 @@ void redLedBlink(void)
 void displaySuccess(void)
 {
     digitalWrite(redLedPin, HIGH);
-    digitalWrite(greenLedPin, HIGH);
+    //digitalWrite(greenLedPin, HIGH);
     delay(500);
     digitalWrite(redLedPin, LOW);
-    digitalWrite(greenLedPin, LOW);
+    //digitalWrite(greenLedPin, LOW);
 }
 
 // -------- FONCTION DE CALIBRAGE DES COMPOSANTS -------- //
@@ -405,7 +409,7 @@ void setupHardware(void)
 {
   // Led rouge allumé pendant le calibrage
   digitalWrite(redLedPin, HIGH);
-  digitalWrite(greenLedPin, LOW);
+  //digitalWrite(greenLedPin, LOW);
 
   first_update  = true;
   flightTime = launchTime = 0;
